@@ -1,0 +1,77 @@
+.page { padding: 0 24rpx 40rpx; }
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 40rpx 16rpx 30rpx;
+}
+.avatar {
+  width: 110rpx; height: 110rpx; border-radius: 50%;
+  background: #FFF1E4; display: flex; align-items: center; justify-content: center;
+  font-size: 60rpx; margin-right: 24rpx;
+}
+.u-name { font-size: 36rpx; font-weight: 700; }
+.u-addr { font-size: 26rpx; color: #9a9a9a; margin-top: 8rpx; }
+
+.wallet {
+  background: linear-gradient(135deg, #FF9A4D, #FF7A30);
+  color: #fff;
+  padding: 36rpx 34rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.wallet .muted { color: rgba(255,255,255,0.85); }
+.w-num { font-size: 56rpx; font-weight: 700; margin-top: 8rpx; }
+.w-unit { font-size: 32rpx; }
+.w-stats { display: flex; }
+.w-stat { text-align: center; margin-left: 40rpx; }
+.w-stat-num { font-size: 40rpx; font-weight: 700; }
+
+.menu { margin-top: 24rpx; padding: 6rpx 30rpx; }
+.menu-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 30rpx 0; font-size: 30rpx;
+  border-bottom: 2rpx solid #f1ece4;
+}
+.menu-item:last-child { border-bottom: none; }
+.arrow { color: #c9c2b8; font-size: 40rpx; }
+
+.section-title {
+  font-size: 28rpx; font-weight: 600; color: #6b6258;
+  margin: 36rpx 8rpx 18rpx;
+}
+
+.my-books { padding: 8rpx 26rpx; }
+.mb-row {
+  display: flex; align-items: center;
+  padding: 22rpx 0; border-bottom: 2rpx solid #f1ece4;
+}
+.mb-row:last-child { border-bottom: none; }
+.mb-cover {
+  width: 76rpx; height: 100rpx; border-radius: 10rpx;
+  font-size: 40rpx; flex-shrink: 0;
+}
+.mb-main { flex: 1; margin-left: 20rpx; }
+.mb-title { font-size: 30rpx; font-weight: 600; }
+.mb-sub { font-size: 24rpx; margin-top: 6rpx; }
+.mb-right { text-align: right; }
+.mb-status { font-size: 22rpx; color: #2faa55; margin-top: 8rpx; }
+.mb-status.gone { color: #9a9a9a; }
+
+.trans { padding: 8rpx 30rpx; }
+.t-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 26rpx 0; border-bottom: 2rpx solid #f1ece4;
+}
+.t-row:last-child { border-bottom: none; }
+.t-title { font-size: 28rpx; }
+.t-time { font-size: 22rpx; margin-top: 6rpx; }
+.t-delta { font-size: 32rpx; font-weight: 600; }
+.plus { color: #2faa55; }
+.minus { color: #EF7E72; }
+
+.empty { padding: 50rpx 40rpx; text-align: center; }
+.empty-btn { margin-top: 26rpx; width: 240rpx; }
+
+.footer { text-align: center; font-size: 22rpx; margin-top: 40rpx; }

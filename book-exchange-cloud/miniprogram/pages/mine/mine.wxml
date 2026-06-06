@@ -1,0 +1,76 @@
+<view class="page">
+
+  <view class="header">
+    <view class="avatar">{{user.avatar || '🙂'}}</view>
+    <view class="u-info">
+      <view class="u-name">{{user.name || '加载中…'}}</view>
+      <view class="u-addr">📍 {{community}}{{user.address ? ' · ' + user.address : ''}}</view>
+    </view>
+  </view>
+
+  <view class="wallet card">
+    <view class="w-left">
+      <view class="muted">我的书币</view>
+      <view class="w-num">{{user.credits || 0}} <text class="w-unit">🪙</text></view>
+    </view>
+    <view class="w-stats">
+      <view class="w-stat">
+        <view class="w-stat-num">{{stats.published}}</view>
+        <view class="muted">已发布</view>
+      </view>
+      <view class="w-stat">
+        <view class="w-stat-num">{{stats.got}}</view>
+        <view class="muted">已兑入</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="menu card">
+    <view class="menu-item" bindtap="goOrders">
+      <text>🗂️ 兑换记录</text><text class="arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goPublish">
+      <text>➕ 发布闲置书</text><text class="arrow">›</text>
+    </view>
+  </view>
+
+  <view class="section-title">我发布的书</view>
+  <view wx:if="{{myBooks.length === 0}}" class="empty card">
+    <view class="muted">还没有发布过书，去把孩子读完的书上架吧～</view>
+    <button class="btn-primary empty-btn" bindtap="goPublish">去发布</button>
+  </view>
+  <view wx:else class="my-books card">
+    <view wx:for="{{myBooks}}" wx:key="_id" class="mb-row">
+      <view class="cover mb-cover" style="background:{{item.color}}">{{item.cover}}</view>
+      <view class="mb-main">
+        <view class="mb-title">{{item.title}}</view>
+        <view class="muted mb-sub">{{item.condition}} · {{item.ageRange}}</view>
+      </view>
+      <view class="mb-right">
+        <view class="coin">+{{item.credits}}</view>
+        <view class="mb-status {{item.status === 'exchanged' ? 'gone' : ''}}">
+          {{item.status === 'exchanged' ? '已换出' : (item.status === 'exchanging' ? '交接中' : '在架')}}
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-title">书币明细</view>
+  <view wx:if="{{transactions.length === 0}}" class="card" style="padding:40rpx;text-align:center">
+    <text class="muted">暂无书币记录</text>
+  </view>
+  <view wx:else class="trans card">
+    <view wx:for="{{transactions}}" wx:key="_id" class="t-row">
+      <view>
+        <view class="t-title">{{item.title}}</view>
+        <view class="muted t-time">{{item.timeText}}</view>
+      </view>
+      <view class="t-delta {{item.delta >= 0 ? 'plus' : 'minus'}}">
+        {{item.delta >= 0 ? '+' : ''}}{{item.delta}}
+      </view>
+    </view>
+  </view>
+
+  <view class="footer muted">范围：仅展示「{{community}}」内的书 · 楼下当面交接</view>
+
+</view>

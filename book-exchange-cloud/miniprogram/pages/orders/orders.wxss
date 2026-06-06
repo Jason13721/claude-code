@@ -1,0 +1,41 @@
+.page { padding: 24rpx; }
+
+.order {
+  display: flex;
+  padding: 24rpx;
+  margin-bottom: 22rpx;
+}
+.o-cover {
+  width: 110rpx; height: 150rpx;
+  border-radius: 12rpx; font-size: 56rpx; flex-shrink: 0;
+}
+.o-main { flex: 1; margin-left: 22rpx; display: flex; flex-direction: column; }
+.o-top { display: flex; align-items: center; }
+.o-type {
+  font-size: 22rpx; padding: 3rpx 12rpx; border-radius: 8rpx;
+  margin-right: 12rpx; color: #fff;
+}
+.o-get { background: #6BA8E0; }
+.o-give { background: #7FBF7A; }
+.o-title { font-size: 30rpx; font-weight: 600; }
+.o-meta { font-size: 24rpx; margin-top: 10rpx; }
+.o-bottom {
+  margin-top: auto;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.o-delta { font-size: 28rpx; font-weight: 600; }
+.minus { color: #EF7E72; }
+.plus { color: #2faa55; }
+.o-right { display: flex; align-items: center; }
+.o-time { font-size: 22rpx; margin-right: 16rpx; }
+.status { font-size: 24rpx; }
+.done { color: #2faa55; }
+.listed { color: #9a9a9a; }
+.o-confirm {
+  font-size: 24rpx; height: 56rpx; line-height: 52rpx; padding: 0 22rpx;
+  margin: 0;
+}
+
+.empty { padding: 70rpx 40rpx; text-align: center; color: #6b6258; }
+.empty-emoji { font-size: 80rpx; margin-bottom: 16rpx; }
+.empty-btn { margin-top: 30rpx; width: 240rpx; }

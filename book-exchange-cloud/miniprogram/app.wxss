@@ -1,0 +1,71 @@
+/* 全局样式 —— 暖色、温和的“邻里”气质 */
+page {
+  background: #F7F4EF;
+  color: #2b2b2b;
+  font-size: 28rpx;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+.page {
+  min-height: 100vh;
+  padding-bottom: 40rpx;
+  box-sizing: border-box;
+}
+
+/* 通用卡片 */
+.card {
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 18rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 书币标签 */
+.coin {
+  color: #FF8A3D;
+  font-weight: 600;
+}
+.coin::before {
+  content: "🪙 ";
+}
+
+/* 主按钮 */
+.btn-primary {
+  background: linear-gradient(135deg, #FF9A4D, #FF7A30);
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  border: none;
+}
+.btn-primary[disabled] {
+  background: #e6e2dc;
+  color: #fff;
+}
+.btn-ghost {
+  background: #fff;
+  color: #FF7A30;
+  border: 2rpx solid #FFD0A6;
+  border-radius: 999rpx;
+}
+
+/* 书封面方块 */
+.cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+/* 小标签 */
+.tag {
+  display: inline-block;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  background: #F2EDE6;
+  color: #8a7f72;
+  margin-right: 10rpx;
+}
+
+.muted { color: #9a9a9a; }
+.center { text-align: center; }

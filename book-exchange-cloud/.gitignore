@@ -1,0 +1,5 @@
+# 云函数依赖（上传时由开发者工具在云端安装）
+cloudfunctions/**/node_modules/
+node_modules/
+miniprogram_npm/
+.DS_Store
