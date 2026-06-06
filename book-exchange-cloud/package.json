@@ -1,0 +1,11 @@
+{
+  "name": "book-exchange-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "description": "邻里换书 —— 微信云开发版（小程序 + 云函数）",
+  "scripts": {
+    "test": "node test/run.js && node test/client-contract.js",
+    "test:logic": "node test/run.js",
+    "test:contract": "node test/client-contract.js"
+  }
+}

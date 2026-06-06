@@ -1,0 +1,33 @@
+<view class="page">
+
+  <view wx:if="{{loading}}" class="muted center" style="padding:80rpx 0">加载中…</view>
+
+  <view wx:elif="{{orders.length === 0}}" class="empty card">
+    <view class="empty-emoji">🗂️</view>
+    <view>还没有任何记录</view>
+    <view class="muted">去书架兑换一本，或发布一本闲置书吧</view>
+    <button class="btn-primary empty-btn" bindtap="goShelf">去书架</button>
+  </view>
+
+  <view wx:for="{{orders}}" wx:key="_id" class="order card">
+    <view class="cover o-cover" style="background:{{item.bookSnapshot.color}}">{{item.bookSnapshot.cover}}</view>
+    <view class="o-main">
+      <view class="o-top">
+        <text class="o-type {{item.type === 'get' ? 'o-get' : 'o-give'}}">{{item.type === 'get' ? '兑入' : '换出'}}</text>
+        <text class="o-title">{{item.bookSnapshot.title}}</text>
+      </view>
+      <view class="muted o-meta">{{item.type === 'get' ? '对方：' : '领书人：'}}{{item.counterparty}}</view>
+      <view class="o-bottom">
+        <text class="o-delta {{item.type === 'get' ? 'minus' : 'plus'}}">
+          {{item.type === 'get' ? '-' : '+'}}{{item.credits}} 书币
+        </text>
+        <view class="o-right">
+          <text class="muted o-time">{{item.timeText}}</text>
+          <text wx:if="{{item.status === '已完成'}}" class="status done">已完成</text>
+          <button wx:else class="btn-ghost o-confirm" data-id="{{item._id}}" bindtap="onConfirm">确认交接</button>
+        </view>
+      </view>
+    </view>
+  </view>
+
+</view>
