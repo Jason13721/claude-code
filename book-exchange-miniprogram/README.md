@@ -32,6 +32,21 @@
 
 ## 如何运行
 
+### 方式一：浏览器直接跑（最快，零安装）
+
+`web-demo/` 是一个浏览器版，**复用了小程序的真实业务逻辑**（`utils/store.js`），
+界面也是同款，用来快速点着体验整个闭环：
+
+```bash
+cd book-exchange-miniprogram
+python3 -m http.server 8099
+# 浏览器打开 http://127.0.0.1:8099/web-demo/index.html
+```
+
+> `web-demo/screenshots/` 里是用无头浏览器自动跑通后截下的运行效果图。
+
+### 方式二：微信开发者工具（真机/小程序环境）
+
 1. 用[微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)打开本目录
 2. AppID 选择「测试号」（项目已设为 `touristappid`）
 3. 编译即可在模拟器中点击体验
