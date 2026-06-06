@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>邻里换书 · 浏览器可跑版</title>
+<!-- 复用小程序的真实业务逻辑：书币规则 + 数据都在 ../utils/store.js -->
+<script>var module = { exports: {} };</script>
+<script>
+/**
+ * 邻里换书 —— 内存数据仓库 + 书币（积分）规则
+ *
+ * 设计要点：
+ *  - 用「书币」解耦“给”与“取”，避免一对一交换的双重需求巧合难题。
+ *      · 把书贡献出去（上架）→ 获得书币
+ *      · 想要别人的书 → 用书币兑换
+ *  - 范围先锁定在「单个小区」，书架只展示同小区的书，线下楼下交接。
+ *
+ * 注意：这是原型，状态保存在模块内存里，重启小程序会重置为下面的演示数据。
+ *      正式版本应替换为云开发 / 后端接口。
+ */
+
+// 书籍分类（也用于发布时选择）
+const CATEGORIES = ['绘本启蒙', '桥梁书', '科普百科', '文学读物', '教辅工具'];
+// 品相选项，影响书币定价
+const CONDITIONS = ['全新', '九成新', '七成新', '五成新'];
+// 适读年龄段
+const AGE_RANGES = ['0-3岁', '3-6岁', '6-9岁', '9-12岁', '12岁+'];
+
+let _seq = 100; // 自增 id
+function nextId(prefix) {
+  _seq += 1;
+  return prefix + _seq;
+}
+
+// 书币定价：基础分 + 品相加成 + 品类加成，最低 5
+function creditFor(condition, category) {
+  let base = 8;
+  const conditionBonus = { 全新: 4, 九成新: 2, 七成新: 0, 五成新: -2 };
+  base += conditionBonus[condition] != null ? conditionBonus[condition] : 0;
+  if (category === '科普百科' || category === '教辅工具') base += 2;
+  return Math.max(5, base);
+}
+
+// ——— 演示数据 ———
+const state = {
+  community: '阳光花园小区',
+  user: {
+    name: '王爸爸',
+    address: '4栋1单元',
+    avatar: '🙂',
+    credits: 30 // 新人礼包，方便立刻体验兑换
+  },
+  books: [
+    {
+      id: 'b1', title: '猜猜我有多爱你', author: '山姆·麦克布雷尼', cover: '🐰',
+      color: '#FFB74D', category: '绘本启蒙', ageRange: '0-3岁', condition: '九成新',
+      credits: 10, desc: '经典睡前绘本，孩子很喜欢，仅有少量翻阅痕迹。',
+      owner: { name: '李妈妈', address: '3栋2单元' }, mine: false, status: 'available'
+    },
+    {
+      id: 'b2', title: '神奇校车·人体内的旅行', author: '乔安娜·柯尔', cover: '🚌',
+      color: '#4FC3F7', category: '科普百科', ageRange: '6-9岁', condition: '七成新',
+      credits: 10, desc: '科普经典，封面有点旧但内页完整，适合开始读科普的孩子。',
+      owner: { name: '张阿姨', address: '1栋3单元' }, mine: false, status: 'available'
+    },
+    {
+      id: 'b3', title: '小猪佩奇双语故事（10册）', author: 'EONE', cover: '🐷',
+      color: '#F48FB1', category: '桥梁书', ageRange: '3-6岁', condition: '全新',
+      credits: 12, desc: '整套几乎没翻过，孩子不太感兴趣，转给需要的邻居。',
+      owner: { name: '陈老师', address: '6栋1单元' }, mine: false, status: 'available'
+    },
+    {
+      id: 'b4', title: '夏洛的网', author: 'E·B·怀特', cover: '🕸️',
+      color: '#A5D6A7', category: '文学读物', ageRange: '9-12岁', condition: '九成新',
+      credits: 10, desc: '读完一遍，保存很好，希望换一本科普类的书。',
+      owner: { name: '刘爸爸', address: '2栋2单元' }, mine: false, status: 'available'
+    },
+    {
+      id: 'b5', title: '我爸爸 / 我妈妈（套装）', author: '安东尼·布朗', cover: '👨‍👩‍👧',
+      color: '#FFD54F', category: '绘本启蒙', ageRange: '3-6岁', condition: '七成新',
+      credits: 8, desc: '低幼经典绘本，有点磨损不影响阅读。',
+      owner: { name: '赵妈妈', address: '5栋1单元' }, mine: false, status: 'available'
+    },
+    {
+      id: 'b6', title: '写给儿童的中国历史', author: '陈卫平', cover: '📜',
+      color: '#BCAAA4', category: '科普百科', ageRange: '9-12岁', condition: '九成新',
+      credits: 12, desc: '套装中的两册，孩子读过一遍，品相不错。',
+      owner: { name: '孙阿姨', address: '7栋2单元' }, mine: false, status: 'available'
+    },
+    {
+      id: 'b7', title: '海底小纵队·探险记', author: 'Vampire Squid', cover: '🐙',
+      color: '#80DEEA', category: '桥梁书', ageRange: '3-6岁', condition: '五成新',
+      credits: 6, desc: '孩子翻得比较旧了，喜欢海底小纵队的可以拿走。',
+      owner: { name: '周妈妈', address: '8栋1单元' }, mine: false, status: 'available'
+    },
+    {
+      id: 'b8', title: 'DK儿童百科全书', author: 'DK', cover: '🌍',
+      color: '#90CAF9', category: '科普百科', ageRange: '6-9岁', condition: '全新',
+      credits: 14, desc: '大部头，几乎全新，希望换给爱探索的小朋友。',
+      owner: { name: '吴爸爸', address: '3栋1单元' }, mine: false, status: 'available'
+    }
+  ],
+  orders: [], // 交易：{ id, type:'get'|'give', book, credits, status:'待交接'|'已完成', time, counterparty }
+  transactions: [
+    { id: 't1', title: '新人礼包', delta: 30, time: '注册时' }
+  ]
+};
+
+function now() {
+  const d = new Date();
+  const p = (n) => (n < 10 ? '0' + n : '' + n);
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function addTransaction(title, delta) {
+  state.transactions.unshift({ id: nextId('t'), title, delta, time: now() });
+}
+
+// ——— 对外 API ———
+const store = {
+  CATEGORIES,
+  CONDITIONS,
+  AGE_RANGES,
+  creditFor,
+
+  getCommunity() { return state.community; },
+  getUser() { return state.user; },
+
+  // 书架：默认只展示可兑换的、且非本人发布的书；可按分类筛选
+  listBooks(category) {
+    return state.books.filter((b) => {
+      if (b.status !== 'available') return false;
+      if (b.mine) return false;
+      if (category && category !== '全部' && b.category !== category) return false;
+      return true;
+    });
+  },
+
+  getBook(id) { return state.books.find((b) => b.id === id); },
+
+  // 我发布的书
+  myBooks() { return state.books.filter((b) => b.mine); },
+
+  // 发布闲置书 → 立刻获得书币（原型简化；正式版可在交接完成时结算）
+  publishBook(form) {
+    const credits = creditFor(form.condition, form.category);
+    const book = {
+      id: nextId('b'),
+      title: form.title,
+      author: form.author || '佚名',
+      cover: form.cover || '📚',
+      color: form.color || '#FF8A3D',
+      category: form.category,
+      ageRange: form.ageRange,
+      condition: form.condition,
+      credits,
+      desc: form.desc || '',
+      owner: { name: state.user.name, address: state.user.address },
+      mine: true,
+      status: 'available'
+    };
+    state.books.unshift(book);
+    state.user.credits += credits;
+    addTransaction(`上架《${book.title}》`, credits);
+    state.orders.unshift({
+      id: nextId('o'), type: 'give', book, credits,
+      status: '已上架', time: now(), counterparty: '待邻居兑换'
+    });
+    return { book, credits };
+  },
+
+  // 兑换他人的书 → 扣书币，生成待交接订单
+  exchangeBook(id) {
+    const book = this.getBook(id);
+    if (!book) return { ok: false, msg: '书籍不存在' };
+    if (book.status !== 'available') return { ok: false, msg: '这本书已被兑换' };
+    if (book.mine) return { ok: false, msg: '这是你自己发布的书' };
+    if (state.user.credits < book.credits) {
+      return { ok: false, msg: `书币不足，还差 ${book.credits - state.user.credits} 枚，先发布几本闲置书吧` };
+    }
+    state.user.credits -= book.credits;
+    book.status = 'exchanging';
+    addTransaction(`兑换《${book.title}》`, -book.credits);
+    const order = {
+      id: nextId('o'), type: 'get', book, credits: book.credits,
+      status: '待交接', time: now(), counterparty: `${book.owner.name}（${book.owner.address}）`
+    };
+    state.orders.unshift(order);
+    return { ok: true, order };
+  },
+
+  getOrders() { return state.orders; },
+  getTransactions() { return state.transactions; },
+
+  // 确认线下交接完成
+  confirmOrder(id) {
+    const order = state.orders.find((o) => o.id === id);
+    if (!order) return { ok: false };
+    order.status = '已完成';
+    if (order.type === 'get') {
+      const book = this.getBook(order.book.id);
+      if (book) book.status = 'exchanged';
+    }
+    return { ok: true };
+  }
+};
+
+module.exports = store;
+
+</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #d9d4cc; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 20px;
+  }
+  /* 手机外壳 */
+  .phone {
+    width: 390px; height: 800px; background: #F7F4EF;
+    border-radius: 44px; overflow: hidden; position: relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.3);
+    border: 10px solid #1c1c1e; display: flex; flex-direction: column;
+  }
+  .statusbar {
+    height: 38px; background: #FF8A3D; color: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px; font-size: 13px; flex-shrink: 0;
+  }
+  .navbar {
+    background: #FF8A3D; color: #fff; height: 44px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 600; position: relative;
+  }
+  .navbar .back {
+    position: absolute; left: 14px; font-size: 22px; cursor: pointer; line-height: 1;
+  }
+  .body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .tabbar {
+    height: 56px; background: #fff; border-top: 1px solid #eee;
+    display: flex; flex-shrink: 0;
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; font-size: 11px; color: #9a9a9a; cursor: pointer; gap: 3px;
+  }
+  .tab.on { color: #FF8A3D; }
+  .tab .ic { font-size: 20px; }
+
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 9px rgba(0,0,0,.05); }
+  .coin { color: #FF8A3D; font-weight: 600; }
+  .muted { color: #9a9a9a; }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 99px;
+    font-size: 11px; background: #F2EDE6; color: #8a7f72; margin-right: 6px;
+  }
+  .btn {
+    background: linear-gradient(135deg,#FF9A4D,#FF7A30); color:#fff; border:none;
+    border-radius: 99px; font-size: 15px; font-weight: 600; cursor: pointer; padding: 11px 0;
+  }
+  .btn[disabled] { background:#e6e2dc; cursor: not-allowed; }
+  .btn-ghost { background:#fff; color:#FF7A30; border:1px solid #FFD0A6; border-radius:99px; cursor:pointer; }
+  .cover { display:flex; align-items:center; justify-content:center; color:#fff; }
+
+  /* hero */
+  .hero { background: linear-gradient(135deg,#FF9A4D,#FF7A30); color:#fff; padding:16px 18px 22px; }
+  .hero-row { display:flex; justify-content:space-between; align-items:center; }
+  .hero-coin { background:rgba(255,255,255,.22); padding:5px 13px; border-radius:99px; font-size:13px; font-weight:600; cursor:pointer; }
+  .hero-title { font-size:21px; font-weight:700; margin-top:14px; }
+  .hero-sub { font-size:13px; opacity:.92; margin-top:5px; }
+  .cats { display:flex; gap:8px; padding:13px 16px 4px; overflow-x:auto; }
+  .cat { padding:6px 15px; background:#fff; border-radius:99px; font-size:13px; color:#6b6258; white-space:nowrap; cursor:pointer; }
+  .cat.on { background:#FF8A3D; color:#fff; font-weight:600; }
+  .list { padding:6px 14px 14px; }
+  .book { display:flex; padding:11px; margin-bottom:11px; cursor:pointer; }
+  .book .bc { width:70px; height:95px; border-radius:8px; font-size:36px; flex-shrink:0; }
+  .book .bm { flex:1; margin-left:12px; display:flex; flex-direction:column; }
+  .book .bt { font-size:16px; font-weight:600; line-height:1.25; }
+  .book .ba { font-size:12px; margin-top:3px; }
+  .book .btags { margin-top:7px; }
+  .book .bb { margin-top:auto; display:flex; justify-content:space-between; align-items:center; }
+
+  /* detail */
+  .d-pad { padding:14px 14px 90px; }
+  .top { display:flex; padding:16px; }
+  .top .bc { width:100px; height:135px; border-radius:9px; font-size:52px; flex-shrink:0; }
+  .top .ti { flex:1; margin-left:14px; display:flex; flex-direction:column; }
+  .d-title { font-size:19px; font-weight:700; line-height:1.3; }
+  .d-tags { margin-top:9px; }
+  .d-price { margin-top:auto; font-size:20px; }
+  .block { margin-top:12px; padding:14px 15px; }
+  .block-title { font-size:15px; font-weight:600; margin-bottom:8px; }
+  .desc { color:#555; line-height:1.6; font-size:14px; }
+  .owner-row { display:flex; align-items:center; }
+  .oav { width:40px; height:40px; border-radius:50%; background:#FFF1E4; display:flex; align-items:center; justify-content:center; font-size:20px; margin-right:10px; }
+  .hint { margin-top:11px; background:#FFF7EF; color:#9a7b5c; padding:9px 11px; border-radius:7px; font-size:12px; line-height:1.5; }
+  .bar { position:absolute; left:0; right:0; bottom:0; background:#fff; padding:9px 14px 14px; display:flex; align-items:center; box-shadow:0 -2px 9px rgba(0,0,0,.06); }
+  .bar .bl { margin-right:12px; }
+  .bar .bb2 { flex:1; }
+
+  /* publish */
+  .p-pad { padding:14px; }
+  .tip { padding:11px 13px; font-size:12px; color:#9a7b5c; background:#FFF7EF; line-height:1.5; border-radius:12px; }
+  .form { margin-top:12px; padding:4px 15px; }
+  .field { padding:13px 0; border-bottom:1px solid #f1ece4; }
+  .field:last-child { border-bottom:none; }
+  .label { font-size:14px; color:#6b6258; margin-bottom:8px; }
+  .req { color:#EF7E72; }
+  .input, .sel, .ta { font-size:15px; width:100%; border:none; outline:none; background:transparent; font-family:inherit; }
+  .sel { color:#2b2b2b; cursor:pointer; }
+  .ta { height:54px; resize:none; }
+  .covers { display:flex; flex-wrap:wrap; gap:9px; }
+  .cpick { width:42px; height:42px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; opacity:.55; border:2px solid transparent; cursor:pointer; }
+  .cpick.on { opacity:1; border-color:#FF7A30; }
+  .estimate { margin-top:12px; padding:14px 15px; display:flex; justify-content:space-between; align-items:center; font-size:15px; }
+  .estimate .en { font-size:20px; }
+  .submit { margin-top:18px; width:100%; }
+
+  /* orders */
+  .o-pad { padding:14px; }
+  .order { display:flex; padding:12px; margin-bottom:11px; }
+  .order .oc { width:55px; height:75px; border-radius:6px; font-size:28px; flex-shrink:0; }
+  .order .om { flex:1; margin-left:11px; display:flex; flex-direction:column; }
+  .o-top { display:flex; align-items:center; }
+  .o-type { font-size:11px; padding:1px 6px; border-radius:4px; margin-right:6px; color:#fff; }
+  .o-get { background:#6BA8E0; } .o-give { background:#7FBF7A; }
+  .o-title { font-size:15px; font-weight:600; }
+  .o-meta { font-size:12px; margin-top:5px; }
+  .o-bottom { margin-top:auto; display:flex; justify-content:space-between; align-items:center; }
+  .o-delta { font-size:14px; font-weight:600; }
+  .minus { color:#EF7E72; } .plus { color:#2faa55; }
+  .o-right { display:flex; align-items:center; gap:8px; }
+  .o-time { font-size:11px; }
+  .status { font-size:12px; } .done { color:#2faa55; } .listed { color:#9a9a9a; }
+  .o-confirm { font-size:12px; padding:6px 11px; }
+
+  /* mine */
+  .m-pad { padding:0 14px 20px; }
+  .header { display:flex; align-items:center; padding:20px 8px 15px; }
+  .avatar { width:56px; height:56px; border-radius:50%; background:#FFF1E4; display:flex; align-items:center; justify-content:center; font-size:30px; margin-right:12px; }
+  .u-name { font-size:18px; font-weight:700; }
+  .u-addr { font-size:13px; color:#9a9a9a; margin-top:4px; }
+  .wallet { background:linear-gradient(135deg,#FF9A4D,#FF7A30); color:#fff; padding:18px 17px; display:flex; justify-content:space-between; align-items:center; }
+  .wallet .muted { color:rgba(255,255,255,.85); }
+  .w-num { font-size:28px; font-weight:700; margin-top:4px; }
+  .w-stats { display:flex; }
+  .w-stat { text-align:center; margin-left:20px; }
+  .w-stat-num { font-size:20px; font-weight:700; }
+  .menu { margin-top:12px; padding:3px 15px; }
+  .menu-item { display:flex; justify-content:space-between; align-items:center; padding:15px 0; font-size:15px; border-bottom:1px solid #f1ece4; cursor:pointer; }
+  .menu-item:last-child { border-bottom:none; }
+  .arrow { color:#c9c2b8; font-size:20px; }
+  .section-title { font-size:14px; font-weight:600; color:#6b6258; margin:18px 8px 9px; }
+  .my-books { padding:4px 13px; }
+  .mb-row { display:flex; align-items:center; padding:11px 0; border-bottom:1px solid #f1ece4; }
+  .mb-row:last-child { border-bottom:none; }
+  .mb-cover { width:38px; height:50px; border-radius:5px; font-size:20px; flex-shrink:0; }
+  .mb-main { flex:1; margin-left:10px; }
+  .mb-title { font-size:15px; font-weight:600; }
+  .mb-sub { font-size:12px; margin-top:3px; }
+  .mb-right { text-align:right; }
+  .mb-status { font-size:11px; color:#2faa55; margin-top:4px; }
+  .mb-status.gone { color:#9a9a9a; }
+  .trans { padding:4px 15px; }
+  .t-row { display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid #f1ece4; }
+  .t-row:last-child { border-bottom:none; }
+  .t-title { font-size:14px; }
+  .t-time { font-size:11px; margin-top:3px; }
+  .t-delta { font-size:16px; font-weight:600; }
+  .footer { text-align:center; font-size:11px; margin-top:20px; }
+  .empty { padding:35px 20px; text-align:center; color:#6b6258; }
+  .empty .ee { font-size:40px; margin-bottom:8px; }
+  .empty-btn { margin-top:15px; padding:10px 28px; }
+
+  /* modal */
+  .mask { position:absolute; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:50; }
+  .mask.show { display:flex; }
+  .modal { width:280px; background:#fff; border-radius:14px; overflow:hidden; }
+  .modal-t { font-size:17px; font-weight:600; text-align:center; padding:20px 18px 8px; }
+  .modal-c { font-size:14px; color:#666; text-align:center; padding:0 18px 18px; line-height:1.55; }
+  .modal-btns { display:flex; border-top:1px solid #eee; }
+  .modal-btns div { flex:1; text-align:center; padding:13px; font-size:16px; cursor:pointer; }
+  .modal-btns div:first-child { color:#888; border-right:1px solid #eee; }
+  .modal-btns div:last-child { color:#FF7A30; font-weight:600; }
+  .toast { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,.78); color:#fff; padding:12px 20px; border-radius:9px; font-size:14px; z-index:60; display:none; max-width:75%; text-align:center; }
+  .toast.show { display:block; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="statusbar"><span>9:41</span><span>邻里换书 · Demo</span><span>📶 🔋</span></div>
+    <div class="navbar" id="navbar"></div>
+    <div class="body" id="body"></div>
+    <div class="tabbar" id="tabbar"></div>
+    <div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+<script>
+// store.js 以 <script> 方式加载后，其顶层 const store 即为全局对象，直接复用。
+// （同时 module.exports 也指向同一对象）
+
+// —— 简易路由 ——
+const app = { screen: 'index', activeCat: '全部', params: {} };
+const TABS = [
+  { id:'index',   ic:'📚', text:'书架' },
+  { id:'publish', ic:'➕', text:'发布' },
+  { id:'mine',    ic:'🙂', text:'我的' }
+];
+const isTab = (s) => TABS.some(t => t.id === s);
+
+function go(screen, params={}) { app.screen = screen; app.params = params; render(); document.getElementById('body').scrollTop = 0; }
+
+function toast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 1600);
+}
+function modal({title, content, confirmText='确定', cancelText, onConfirm, onCancel}) {
+  const mask = document.getElementById('mask');
+  const m = document.getElementById('modal');
+  m.innerHTML = `<div class="modal-t">${title}</div><div class="modal-c">${content}</div>
+    <div class="modal-btns">${cancelText?`<div id="mc">${cancelText}</div>`:''}<div id="mo">${confirmText}</div></div>`;
+  mask.classList.add('show');
+  const close = ()=>mask.classList.remove('show');
+  m.querySelector('#mo').onclick = ()=>{ close(); onConfirm&&onConfirm(); };
+  if (cancelText) m.querySelector('#mc').onclick = ()=>{ close(); onCancel&&onCancel(); };
+}
+
+// —— 各屏渲染 ——
+function screenIndex() {
+  const cats = ['全部'].concat(store.CATEGORIES);
+  const books = store.listBooks(app.activeCat);
+  const u = store.getUser();
+  const catHtml = cats.map(c=>`<div class="cat ${c===app.activeCat?'on':''}" onclick="setCat('${c}')">${c}</div>`).join('');
+  const listHtml = books.length === 0
+    ? `<div class="empty card"><div class="ee">📭</div><div>这个分类还没有书</div><div class="muted">不如把你家的闲置书发布上来？</div><button class="btn empty-btn" onclick="go('publish')">去发布</button></div>`
+    : books.map(b=>`
+      <div class="book card" onclick="go('detail',{id:'${b.id}'})">
+        <div class="cover bc" style="background:${b.color}">${b.cover}</div>
+        <div class="bm">
+          <div class="bt">${b.title}</div>
+          <div class="ba muted">${b.author}</div>
+          <div class="btags"><span class="tag">${b.ageRange}</span><span class="tag">${b.condition}</span></div>
+          <div class="bb"><span class="coin">${b.credits} 书币</span><span class="muted" style="font-size:12px">${b.owner.address}</span></div>
+        </div>
+      </div>`).join('');
+  return `
+    <div class="hero">
+      <div class="hero-row"><div style="font-size:13px">📍 ${store.getCommunity()}</div>
+        <div class="hero-coin" onclick="go('mine')">书币 ${u.credits} 🪙</div></div>
+      <div class="hero-title">让闲置童书在小区里流动起来</div>
+      <div class="hero-sub">贡献一本得书币 · 用书币换走想读的书</div>
+    </div>
+    <div class="cats">${catHtml}</div>
+    <div class="list">${listHtml}</div>`;
+}
+
+function screenDetail() {
+  const b = store.getBook(app.params.id);
+  const u = store.getUser();
+  const ok = u.credits >= b.credits;
+  return `
+    <div class="d-pad">
+      <div class="top card">
+        <div class="cover bc" style="background:${b.color}">${b.cover}</div>
+        <div class="ti">
+          <div class="d-title">${b.title}</div><div class="muted" style="font-size:13px">${b.author}</div>
+          <div class="d-tags"><span class="tag">${b.category}</span><span class="tag">${b.ageRange}</span><span class="tag">${b.condition}</span></div>
+          <div class="d-price coin">${b.credits} 书币</div>
+        </div>
+      </div>
+      <div class="block card"><div class="block-title">书籍简介</div><div class="desc">${b.desc||'书友没有填写更多介绍～'}</div></div>
+      <div class="block card">
+        <div class="block-title">提供者</div>
+        <div class="owner-row"><div class="oav">📚</div><div><div style="font-size:15px;font-weight:600">${b.owner.name}</div><div class="muted" style="font-size:13px">${b.owner.address} · 同小区</div></div></div>
+        <div class="hint">💡 兑换后与对方约定楼下交接，省去快递，邻里更安心。</div>
+      </div>
+    </div>
+    <div class="bar">
+      <div class="bl"><div class="muted" style="font-size:12px">我的书币</div><div class="coin" style="font-size:18px">${u.credits}</div></div>
+      ${ok
+        ? `<button class="btn bb2" onclick="doExchange('${b.id}')">用 ${b.credits} 书币兑换</button>`
+        : `<button class="btn bb2" disabled>书币不足（差 ${b.credits-u.credits}）</button>`}
+    </div>`;
+}
+
+function screenPublish() {
+  const f = app.params.form || (app.params.form = {
+    coverIndex:0, title:'', author:'', categoryIndex:0, ageIndex:1, conditionIndex:1, desc:''
+  });
+  const COVERS = [['📕','#EF7E72'],['📗','#7FBF7A'],['📘','#6BA8E0'],['📙','#F0A848'],['🐰','#FFB74D'],['🚀','#9575CD'],['🦕','#4DB6AC'],['🌍','#90CAF9']];
+  app.params.COVERS = COVERS;
+  const est = store.creditFor(store.CONDITIONS[f.conditionIndex], store.CATEGORIES[f.categoryIndex]);
+  const coversHtml = COVERS.map((c,i)=>`<div class="cpick ${i===f.coverIndex?'on':''}" style="background:${c[1]}" onclick="pubSet('coverIndex',${i})">${c[0]}</div>`).join('');
+  const selOpts = (arr,idx,field)=>`<select class="sel" onchange="pubSet('${field}',this.selectedIndex)">${arr.map((o,i)=>`<option ${i===idx?'selected':''}>${o}</option>`).join('')}</select>`;
+  return `
+    <div class="p-pad">
+      <div class="tip">📷 正式版可「扫 ISBN 条码」自动识别书名、封面与分类，这里先手动填写。</div>
+      <div class="form card">
+        <div class="field"><div class="label">选个封面</div><div class="covers">${coversHtml}</div></div>
+        <div class="field"><div class="label">书名 <span class="req">*</span></div><input class="input" placeholder="如：猜猜我有多爱你" value="${f.title}" oninput="pubInput('title',this.value)"></div>
+        <div class="field"><div class="label">作者</div><input class="input" placeholder="选填" value="${f.author}" oninput="pubInput('author',this.value)"></div>
+        <div class="field"><div class="label">分类</div>${selOpts(store.CATEGORIES,f.categoryIndex,'categoryIndex')}</div>
+        <div class="field"><div class="label">适读年龄</div>${selOpts(store.AGE_RANGES,f.ageIndex,'ageIndex')}</div>
+        <div class="field"><div class="label">品相</div>${selOpts(store.CONDITIONS,f.conditionIndex,'conditionIndex')}</div>
+        <div class="field"><div class="label">一句话介绍</div><textarea class="ta" placeholder="如：孩子很喜欢，几乎全新～" oninput="pubInput('desc',this.value)">${f.desc}</textarea></div>
+      </div>
+      <div class="estimate card"><div>预计可得</div><div class="coin en" id="est">${est} 书币</div></div>
+      <button class="btn submit" onclick="doPublish()">上架并领取书币</button>
+    </div>`;
+}
+
+function screenOrders() {
+  const orders = store.getOrders();
+  if (orders.length === 0) return `<div class="o-pad"><div class="empty card"><div class="ee">🗂️</div><div>还没有任何记录</div><div class="muted">去书架兑换一本，或发布一本闲置书吧</div><button class="btn empty-btn" onclick="go('index')">去书架</button></div></div>`;
+  return `<div class="o-pad">${orders.map(o=>`
+    <div class="order card">
+      <div class="cover oc" style="background:${o.book.color}">${o.book.cover}</div>
+      <div class="om">
+        <div class="o-top"><span class="o-type ${o.type==='get'?'o-get':'o-give'}">${o.type==='get'?'兑入':'上架'}</span><span class="o-title">${o.book.title}</span></div>
+        <div class="o-meta muted">${o.type==='get'?'对方：':''}${o.counterparty}</div>
+        <div class="o-bottom">
+          <span class="o-delta ${o.type==='get'?'minus':'plus'}">${o.type==='get'?'-':'+'}${o.credits} 书币</span>
+          <div class="o-right"><span class="muted o-time">${o.time}</span>
+          ${o.status==='已完成'?'<span class="status done">已完成</span>':o.status==='已上架'?'<span class="status listed">已上架</span>':`<button class="btn-ghost o-confirm" onclick="doConfirm('${o.id}')">确认交接</button>`}</div>
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function screenMine() {
+  const u = store.getUser(), orders = store.getOrders(), my = store.myBooks();
+  const published = orders.filter(o=>o.type==='give').length, got = orders.filter(o=>o.type==='get').length;
+  const myHtml = my.length===0
+    ? `<div class="empty card"><div class="muted">还没有发布过书，去把孩子读完的书上架吧～</div><button class="btn empty-btn" onclick="go('publish')">去发布</button></div>`
+    : `<div class="my-books card">${my.map(b=>`<div class="mb-row"><div class="cover mb-cover" style="background:${b.color}">${b.cover}</div><div class="mb-main"><div class="mb-title">${b.title}</div><div class="muted mb-sub">${b.condition} · ${b.ageRange}</div></div><div class="mb-right"><div class="coin">+${b.credits}</div><div class="mb-status ${b.status==='exchanged'?'gone':''}">${b.status==='exchanged'?'已换出':'在架'}</div></div></div>`).join('')}</div>`;
+  const transHtml = store.getTransactions().map(t=>`<div class="t-row"><div><div class="t-title">${t.title}</div><div class="muted t-time">${t.time}</div></div><div class="t-delta ${t.delta>=0?'plus':'minus'}">${t.delta>=0?'+':''}${t.delta}</div></div>`).join('');
+  return `
+    <div class="m-pad">
+      <div class="header"><div class="avatar">${u.avatar}</div><div><div class="u-name">${u.name}</div><div class="u-addr">📍 ${store.getCommunity()} · ${u.address}</div></div></div>
+      <div class="wallet card"><div><div class="muted" style="font-size:13px">我的书币</div><div class="w-num">${u.credits} 🪙</div></div>
+        <div class="w-stats"><div class="w-stat"><div class="w-stat-num">${published}</div><div class="muted" style="font-size:12px">已上架</div></div><div class="w-stat"><div class="w-stat-num">${got}</div><div class="muted" style="font-size:12px">已兑入</div></div></div></div>
+      <div class="menu card"><div class="menu-item" onclick="go('orders')"><span>🗂️ 兑换记录</span><span class="arrow">›</span></div><div class="menu-item" onclick="go('publish')"><span>➕ 发布闲置书</span><span class="arrow">›</span></div></div>
+      <div class="section-title">我发布的书</div>${myHtml}
+      <div class="section-title">书币明细</div><div class="trans card">${transHtml}</div>
+      <div class="footer muted">范围：仅展示「${store.getCommunity()}」内的书 · 楼下当面交接</div>
+    </div>`;
+}
+
+const SCREENS = { index:screenIndex, detail:screenDetail, publish:screenPublish, orders:screenOrders, mine:screenMine };
+const TITLES = { index:'书架', detail:'书籍详情', publish:'发布闲置书', orders:'兑换记录', mine:'我的' };
+
+function render() {
+  document.getElementById('body').innerHTML = SCREENS[app.screen]();
+  const nav = document.getElementById('navbar');
+  nav.innerHTML = (!isTab(app.screen) ? `<span class="back" onclick="back()">‹</span>` : '') + TITLES[app.screen];
+  document.getElementById('tabbar').innerHTML = TABS.map(t=>`<div class="tab ${app.screen===t.id?'on':''}" onclick="go('${t.id}')"><span class="ic">${t.ic}</span><span>${t.text}</span></div>`).join('');
+}
+function back() { go('index'); }
+
+// —— 交互动作 ——
+function setCat(c){ app.activeCat = c; render(); }
+function pubInput(field,val){ app.params.form[field] = val; }
+function pubSet(field,idx){
+  app.params.form[field] = idx;
+  if (field==='conditionIndex' || field==='categoryIndex') {
+    const f = app.params.form;
+    document.getElementById('est').textContent = store.creditFor(store.CONDITIONS[f.conditionIndex], store.CATEGORIES[f.categoryIndex]) + ' 书币';
+  }
+  if (field==='coverIndex') render();
+}
+function doExchange(id){
+  const r = store.exchangeBook(id);
+  if (!r.ok) { toast(r.msg); return; }
+  const b = store.getBook(id);
+  modal({ title:'兑换成功 🎉', content:`已扣 ${r.order.credits} 书币。请与「${b.owner.name}」约定楼下交接，收到书后在「兑换记录」里确认完成。`,
+    confirmText:'查看记录', cancelText:'继续逛', onConfirm:()=>go('orders'), onCancel:()=>go('index') });
+}
+function doPublish(){
+  const f = app.params.form, C = app.params.COVERS;
+  if (!f.title.trim()) { toast('请填写书名'); return; }
+  const r = store.publishBook({ title:f.title.trim(), author:f.author.trim(),
+    category:store.CATEGORIES[f.categoryIndex], ageRange:store.AGE_RANGES[f.ageIndex],
+    condition:store.CONDITIONS[f.conditionIndex], desc:f.desc.trim(),
+    cover:C[f.coverIndex][0], color:C[f.coverIndex][1] });
+  modal({ title:'上架成功 🎉', content:`《${r.book.title}》已上架，到账 ${r.credits} 书币！用它去兑换你想读的书吧。`,
+    confirmText:'去书架看看', cancelText:'再发一本',
+    onConfirm:()=>{ app.params.form=null; go('index'); },
+    onCancel:()=>{ app.params.form.title=''; app.params.form.author=''; app.params.form.desc=''; render(); } });
+}
+function doConfirm(id){
+  modal({ title:'确认交接', content:'确认你已与邻居完成线下交接？', confirmText:'确认', cancelText:'取消',
+    onConfirm:()=>{ store.confirmOrder(id); toast('交接完成 👍'); render(); } });
+}
+
+render();
+</script>
+</body>
+</html>
