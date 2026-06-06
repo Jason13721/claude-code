@@ -1,0 +1,44 @@
+<view class="page" wx:if="{{book}}">
+
+  <view class="top card">
+    <view class="cover big-cover" style="background:{{book.color}}">{{book.cover}}</view>
+    <view class="top-info">
+      <view class="d-title">{{book.title}}</view>
+      <view class="muted">{{book.author}}</view>
+      <view class="d-tags">
+        <text class="tag">{{book.category}}</text>
+        <text class="tag">{{book.ageRange}}</text>
+        <text class="tag">{{book.condition}}</text>
+      </view>
+      <view class="d-price coin">{{book.credits}} 书币</view>
+    </view>
+  </view>
+
+  <view class="block card">
+    <view class="block-title">书籍简介</view>
+    <view class="desc">{{book.desc || '书友没有填写更多介绍～'}}</view>
+  </view>
+
+  <view class="block card">
+    <view class="block-title">提供者</view>
+    <view class="owner-row">
+      <view class="owner-avatar">📚</view>
+      <view>
+        <view class="owner-name">{{book.owner.name}}</view>
+        <view class="muted">{{book.owner.address}} · 同小区</view>
+      </view>
+    </view>
+    <view class="hint">💡 兑换后与对方约定楼下交接，省去快递，邻里更安心。</view>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bar">
+    <view class="bar-left">
+      <view class="muted">我的书币</view>
+      <view class="coin bar-credits">{{credits}}</view>
+    </view>
+    <button wx:if="{{affordable}}" class="btn-primary bar-btn" bindtap="onExchange">用 {{book.credits}} 书币兑换</button>
+    <button wx:else class="btn-primary bar-btn" disabled="true">书币不足（差 {{book.credits - credits}}）</button>
+  </view>
+
+</view>

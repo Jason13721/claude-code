@@ -1,0 +1,41 @@
+.page { padding: 24rpx 24rpx 160rpx; }
+
+.top { display: flex; padding: 30rpx; }
+.big-cover {
+  width: 200rpx;
+  height: 270rpx;
+  border-radius: 16rpx;
+  font-size: 100rpx;
+  flex-shrink: 0;
+}
+.top-info { flex: 1; margin-left: 28rpx; display: flex; flex-direction: column; }
+.d-title { font-size: 38rpx; font-weight: 700; line-height: 1.3; }
+.d-tags { margin-top: 18rpx; }
+.d-price { margin-top: auto; font-size: 40rpx; }
+
+.block { margin-top: 24rpx; padding: 28rpx 30rpx; }
+.block-title { font-size: 30rpx; font-weight: 600; margin-bottom: 16rpx; }
+.desc { color: #555; line-height: 1.6; }
+
+.owner-row { display: flex; align-items: center; }
+.owner-avatar {
+  width: 80rpx; height: 80rpx; border-radius: 50%;
+  background: #FFF1E4; display: flex; align-items: center; justify-content: center;
+  font-size: 40rpx; margin-right: 20rpx;
+}
+.owner-name { font-size: 30rpx; font-weight: 600; }
+.hint {
+  margin-top: 22rpx; background: #FFF7EF; color: #9a7b5c;
+  padding: 18rpx 22rpx; border-radius: 14rpx; font-size: 24rpx; line-height: 1.5;
+}
+
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: #fff; padding: 18rpx 28rpx;
+  padding-bottom: calc(18rpx + env(safe-area-inset-bottom));
+  display: flex; align-items: center;
+  box-shadow: 0 -4rpx 18rpx rgba(0,0,0,0.06);
+}
+.bar-left { margin-right: 24rpx; }
+.bar-credits { font-size: 36rpx; }
+.bar-btn { flex: 1; height: 88rpx; line-height: 88rpx; }
