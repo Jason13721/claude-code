@@ -1,0 +1,122 @@
+<title>什么是 Transformer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@900&family=JetBrains+Mono:wght@400;900&display=swap">
+<style>
+  @font-face { font-family: KaTeX_Math; src: url(fonts/KaTeX_Math-Italic.woff2) format('woff2'); }
+  @font-face { font-family: KaTeX_Main; src: url(fonts/KaTeX_Main-Regular.woff2) format('woff2'); }
+  @font-face { font-family: KaTeX_Main; font-weight: 700; src: url(fonts/KaTeX_Main-Bold.woff2) format('woff2'); }
+  :root {
+    color-scheme: dark;
+    --ink: #070b1a; --panel: #111a3a; --line: #26305c;
+    --text: #eef2ff; --dim: #8b95c9; --amber: #ffb347; --cyan: #4cc9f0;
+  }
+  html, body { background: var(--ink); color: var(--text); }
+  body { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 15px; padding-inline: 16px; padding-block: 28px 48px; }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 18px; }
+  header { display: grid; gap: 6px; }
+  .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--amber); }
+  h1 { margin: 0; font-family: "Noto Serif SC", serif; font-weight: 900; font-size: clamp(28px, 5vw, 44px); line-height: 1.15; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--amber); }
+  .lede { margin: 0; color: var(--dim); max-width: 62ch; line-height: 1.7; }
+  .stage { position: relative; }
+  canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; background: var(--ink); border: 1px solid var(--line); cursor: pointer; }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(7,11,26,.35); border-radius: 12px; border: 0; color: inherit; cursor: pointer; }
+  .overlay span { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: var(--amber); color: #1a1030; font-size: 32px; box-shadow: 0 0 40px rgba(255,179,71,.45); }
+  .overlay[hidden] { display: none !important; }
+  .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button { font: inherit; }
+  #play { background: var(--amber); color: #1a1030; border: 0; border-radius: 8px; padding: 8px 18px; font-weight: 700; cursor: pointer; min-width: 92px; }
+  #play:focus-visible, .chapters button:focus-visible, #seek:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  #seek { flex: 1; min-width: 160px; accent-color: var(--amber); }
+  #time { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; color: var(--dim); font-size: 13px; }
+  .chapters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .chapters button { width: 100%; display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: baseline; text-align: left; background: var(--panel); color: var(--text); border: 1px solid transparent; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+  .chapters button:hover { border-color: var(--line); }
+  .chapters button[aria-current="true"] { border-color: var(--amber); }
+  .num { font-family: "JetBrains Mono", monospace; font-weight: 900; color: var(--amber); }
+  .ts { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim); }
+  .note { color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 70ch; margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">约 10 分钟 · 12 章 · 画面在你的浏览器里实时绘制</div>
+    <h1>什么是 <em>Transformer</em></h1>
+    <p class="lede">从“猜下一个词”讲起，一路走到 Q、K、V、softmax、多头注意力、位置编码和梯度下降。面向高中生，所有注意力数字都是真实算出来的。</p>
+  </header>
+
+  <div class="stage">
+    <canvas id="c" aria-label="Transformer 科普动画"></canvas>
+    <button class="overlay" id="big" aria-label="播放"><span>▶</span></button>
+  </div>
+  <div class="bar">
+    <button id="play">▶ 播放</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="进度">
+    <span id="time">0:00 / 0:00</span>
+  </div>
+
+  <ol class="chapters" id="chapters"></ol>
+  <p class="note">点击章节可直接跳转。整部视频由 JavaScript + Canvas 逐帧绘制，没有使用任何图片素材；配音由本地神经网络 TTS 生成，背景音乐由程序合成。</p>
+  <audio id="audio" src="audio.mp3" preload="auto"></audio>
+</div>
+
+<script src="src/engine.js"></script>
+<script src="src/common.js"></script>
+<script src="src/scenes1.js"></script>
+<script src="src/scenes2.js"></script>
+<script src="src/scenes3.js"></script>
+<script src="timing.js"></script>
+<script src="src/player.js"></script>
+<script>
+(async () => {
+  const chars = new Set();
+  const add = s => { for (const ch of s) chars.add(ch); };
+  for (const sc of SCENES) { sc.lines.forEach(l => add(typeof l === 'string' ? l : l.t)); if (sc.chapter) add(sc.chapter.title + (sc.chapter.sub || '')); }
+  for (const f of ['src/scenes1.js', 'src/scenes2.js', 'src/scenes3.js']) { try { add(await (await fetch(f)).text()); } catch (e) {} }
+  const text = [...chars].join('');
+  try {
+    await Promise.all([400, 500, 700, 900].map(w => document.fonts.load(`${w} 40px "Noto Sans SC"`, text))
+      .concat([document.fonts.load('400 40px "JetBrains Mono"', text), document.fonts.load('900 40px "JetBrains Mono"', '0123456789'),
+        document.fonts.load('40px KaTeX_Math', 'QKVdx'), document.fonts.load('40px KaTeX_Main', 'softmax()'), document.fonts.load('700 40px KaTeX_Main', 'A')]));
+  } catch (e) {}
+
+  const audio = document.getElementById('audio'), play = document.getElementById('play'), big = document.getElementById('big');
+  const seek = document.getElementById('seek'), time = document.getElementById('time'), list = document.getElementById('chapters');
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  let playing = false, cur = 0, t0 = 0, wall = 0, haveAudio = true;
+  audio.addEventListener('error', () => { haveAudio = false; });
+
+  const chapters = [{ n: 0, title: '开场', start: 0 }].concat(PLAYER.timeline.items.filter(i => i.scene.chapter).map(i => ({ n: i.scene.chapter.n, title: i.scene.chapter.title, start: i.start })));
+  const btns = chapters.map(ch => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.innerHTML = `<span class="num">${String(ch.n).padStart(2, '0')}</span><span></span><span class="ts">${fmt(ch.start)}</span>`;
+    b.children[1].textContent = ch.title;
+    b.onclick = () => jump(ch.start + 0.01);
+    li.appendChild(b); list.appendChild(li); return b;
+  });
+
+  function jump(t) { cur = t; t0 = t; wall = performance.now(); if (haveAudio) { try { audio.currentTime = t; } catch (e) {} } if (!playing) toggle(); }
+  function toggle() {
+    playing = !playing;
+    play.textContent = playing ? '⏸ 暂停' : '▶ 播放'; big.hidden = playing;
+    if (playing) { t0 = cur; wall = performance.now(); if (haveAudio) { audio.currentTime = cur; audio.play().catch(() => { haveAudio = false; }); } }
+    else audio.pause();
+  }
+  play.onclick = toggle; big.onclick = toggle; document.getElementById('c').onclick = toggle;
+  seek.oninput = () => { cur = seek.value / 1000 * PLAYER.total; t0 = cur; wall = performance.now(); if (haveAudio) audio.currentTime = cur; };
+
+  cur = 3.2; // an informative still frame before playback
+  function frame() {
+    if (playing) cur = haveAudio && !audio.paused ? audio.currentTime : t0 + (performance.now() - wall) / 1000;
+    if (cur >= PLAYER.total) { cur = PLAYER.total; if (playing) toggle(); }
+    PLAYER.renderAt(cur);
+    seek.value = Math.round(cur / PLAYER.total * 1000);
+    time.textContent = `${fmt(cur)} / ${fmt(PLAYER.total)}`;
+    let k = 0; chapters.forEach((c, i) => { if (cur >= c.start) k = i; });
+    btns.forEach((b, i) => b.setAttribute('aria-current', i === k ? 'true' : 'false'));
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>

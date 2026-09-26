@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>什么是 Transformer</title>
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-sc/400.css">
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-sc/500.css">
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-sc/700.css">
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-sc/900.css">
+<link rel="stylesheet" href="node_modules/@fontsource/jetbrains-mono/400.css">
+<link rel="stylesheet" href="node_modules/@fontsource/jetbrains-mono/900.css">
+<style>
+  @font-face { font-family: KaTeX_Math; font-style: normal; src: url(node_modules/katex/dist/fonts/KaTeX_Math-Italic.woff2) format('woff2'); }
+  @font-face { font-family: KaTeX_Main; src: url(node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2) format('woff2'); }
+  @font-face { font-family: KaTeX_Main; font-weight: 700; src: url(node_modules/katex/dist/fonts/KaTeX_Main-Bold.woff2) format('woff2'); }
+  html, body { margin: 0; background: #05070f; color: #dde; font-family: "Noto Sans SC", sans-serif; }
+  #wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  canvas { width: 100%; aspect-ratio: 16/9; display: block; border-radius: 10px; background: #070b1a; }
+  #bar { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
+  button { background: #ffb347; border: 0; border-radius: 8px; padding: 8px 18px; font: inherit; font-weight: 700; cursor: pointer; }
+  input[type=range] { flex: 1; }
+  #time { font-family: "JetBrains Mono", monospace; min-width: 120px; text-align: right; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="bar"><button id="play">▶ 播放</button><input id="seek" type="range" min="0" max="1000" value="0"><span id="time">0:00</span></div>
+  <audio id="audio" src="build/audio.m4a" preload="auto"></audio>
+</div>
+<script src="src/engine.js"></script>
+<script src="src/common.js"></script>
+<script src="src/scenes1.js"></script>
+<script src="src/scenes2.js"></script>
+<script src="src/scenes3.js"></script>
+<script src="build/timing.js" onerror="window.TIMING=null"></script>
+<script src="src/player.js"></script>
+<script>
+  // Make sure every glyph used by the video is loaded before the first frame.
+  window.fontsReady = (async () => {
+    const chars = new Set();
+    const add = s => { for (const ch of s) chars.add(ch); };
+    for (const sc of window.SCENES) { sc.lines.forEach(l => add(typeof l === 'string' ? l : l.t)); if (sc.chapter) add(sc.chapter.title + (sc.chapter.sub || '')); }
+    for (const src of ['src/scenes1.js', 'src/scenes2.js', 'src/scenes3.js']) add(await (await fetch(src)).text());
+    const text = [...chars].join('');
+    const loads = [];
+    for (const w of [400, 500, 700, 900]) loads.push(document.fonts.load(`${w} 40px "Noto Sans SC"`, text));
+    loads.push(document.fonts.load('400 40px "JetBrains Mono"', text), document.fonts.load('900 40px "JetBrains Mono"', '0123456789'));
+    loads.push(document.fonts.load('40px KaTeX_Math', 'QKVdxabθ'), document.fonts.load('40px KaTeX_Main', 'softmax()=+√'), document.fonts.load('700 40px KaTeX_Main', 'A'));
+    await Promise.all(loads); await document.fonts.ready;
+    return true;
+  })();
+
+  const audio = document.getElementById('audio'), btn = document.getElementById('play'), seek = document.getElementById('seek'), time = document.getElementById('time');
+  let playing = false, t0 = 0, wall = 0, haveAudio = true;
+  audio.addEventListener('error', () => haveAudio = false);
+  const params = new URLSearchParams(location.search);
+  let cur = params.has('scene') ? PLAYER.sceneStart(params.get('scene')) : +(params.get('t') || 0);
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  function frame() {
+    if (playing) cur = haveAudio && !audio.paused ? audio.currentTime : t0 + (performance.now() - wall) / 1000;
+    if (cur >= PLAYER.total) { playing = false; audio.pause(); btn.textContent = '▶ 播放'; }
+    PLAYER.renderAt(cur);
+    seek.value = Math.round(cur / PLAYER.total * 1000);
+    time.textContent = `${fmt(cur)} / ${fmt(PLAYER.total)}`;
+    requestAnimationFrame(frame);
+  }
+  btn.onclick = () => {
+    playing = !playing; btn.textContent = playing ? '⏸ 暂停' : '▶ 播放';
+    if (playing) { t0 = cur; wall = performance.now(); if (haveAudio) { audio.currentTime = cur; audio.play().catch(() => haveAudio = false); } } else audio.pause();
+  };
+  seek.oninput = () => { cur = seek.value / 1000 * PLAYER.total; t0 = cur; wall = performance.now(); if (haveAudio) audio.currentTime = cur; };
+  if (!params.has('render')) window.fontsReady.then(() => requestAnimationFrame(frame));
+</script>
+</body>
+</html>

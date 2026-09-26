@@ -1,0 +1,25 @@
+{
+  "name": "transformer-video",
+  "version": "1.0.0",
+  "description": "“什么是 Transformer” —— 用 JavaScript + Canvas 逐帧生成的中文科普视频",
+  "main": "index.html",
+  "scripts": {
+    "lines": "node tools/timeline.mjs lines",
+    "tts": "python3 tools/tts.py",
+    "cues": "node tools/timeline.mjs cues",
+    "audio": "python3 tools/mix.py",
+    "build:audio": "npm run lines && npm run tts && npm run cues && npm run audio",
+    "render": "node tools/render.mjs --out out/transformer.mp4",
+    "build": "npm run build:audio && npm run render",
+    "preview": "node tools/preview.mjs out/preview",
+    "serve": "npx http-server -p 8080 -c-1 ."
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/noto-sans-sc": "^5.3.0",
+    "katex": "^0.18.9",
+    "playwright-core": "^1.56.1"
+  },
+  "private": true
+}
